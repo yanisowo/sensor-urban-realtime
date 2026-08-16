@@ -1,0 +1,64 @@
+version: '3.8'
+
+networks:
+  smart-city-net:
+    driver: bridge
+
+services:
+  # --------------------------------------------------------------------
+  # 1. Zookeeper: Servicio de coordinación del clúster de Kafka
+  # --------------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - smart-city-net
+
+  # -------------------------------------------------------------------
+  # 2. Apache Kafka: Broker principal de eventos
+  # -------------------------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"     # Puerto expuesto para clientes externos (tu Host / scripts Python)
+      - "29092:29092"   # Puerto interno de la red de Docker
+    networks:
+      - smart-city-net
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      # Configuracion de Listeners para conexion local e interna en Docker
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSET_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  # -------------------------------------------------------------------
+  # 3. AKHQ: Panel web para administrar kafka
+  # -------------------------------------------------------------------  
+  akhq:
+    image: tchiotludo/akhq:latest
+    container_name: akhq
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"  # Abre http://localhost:8080 en el navegador
+    networks:
+      - smart-city-net
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            docker-kafka:
+              properties:
+                bootstrap.servers: "kafka:29092"
