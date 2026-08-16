@@ -17,7 +17,7 @@ flowchart LR
         TOPIC --> SPARK["Spark Structured Streaming\nWindow(1 min) por sensor_id\navg(temperature), avg(air_quality_index)"]
         SPARK --> OUT[("Salida\nconsola / logs")]
 
-        CM[["ConfigMap\nkafka-config"]]
+        CM[["ConfigMap\ndocker-compose.yml"]]
         CM -.->|bootstrap.servers, topic| PROD
         CM -.->|bootstrap.servers, topic| SPARK
     end
